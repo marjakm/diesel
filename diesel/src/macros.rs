@@ -121,8 +121,38 @@ macro_rules! table {
         }
     ) => {
         table! {
+            $name {
+                $($column_name -> $Type,)+
+            } custom_types {}
+        }
+    };
+    (
+        $name:ident {
+            $($column_name:ident -> $Type:ty,)+
+        } custom_types {
+            $($(::$ut:ident)*,)*
+        }
+    ) => {
+        table! {
             $name (id) {
                 $($column_name -> $Type,)+
+            } custom_types {
+                $($(::$ut)*,)*
+            }
+        }
+    };
+    (
+        $name:ident ($pk:ident) {
+            $($column_name:ident -> $Type:ty,)+
+        } custom_types {
+            $($(::$ut:ident)*,)*
+        }
+    ) => {
+        table! {
+            $name ($pk) {
+                $($column_name -> $Type,)+
+            } no select {} custom_types {
+                $($(::$ut)*,)*
             }
         }
     };
@@ -134,7 +164,7 @@ macro_rules! table {
         table! {
             $name ($pk) {
                 $($column_name -> $Type,)+
-            } no select {}
+            } no select {} custom_types {}
         }
     };
     (
@@ -142,6 +172,8 @@ macro_rules! table {
             $($column_name:ident -> $Type:ty,)+
         } no select {
             $($no_select_column_name:ident -> $no_select_type:ty,)*
+        } custom_types {
+            $($(::$ut:ident)*,)*
         }
     ) => {
         table! {
@@ -149,6 +181,8 @@ macro_rules! table {
                 $($column_name -> $Type,)+
             } no select {
                 $($no_select_column_name -> $no_select_type,)*
+            } custom_types {
+                $($(::$ut)*,)*
             }
         }
     };
@@ -157,6 +191,8 @@ macro_rules! table {
             $($column_name:ident -> $Type:ty,)+
         } no select {
             $($no_select_column_name:ident -> $no_select_type:ty,)*
+        } custom_types {
+            $($(::$ut:ident)*,)*
         }
     ) => {
         table_body! {
@@ -164,6 +200,8 @@ macro_rules! table {
                 $($column_name -> $Type,)+
             } no select {
                 $($no_select_column_name -> $no_select_type,)*
+            } custom_types {
+                $($(::$ut)*,)*
             }
         }
     }
@@ -179,7 +217,25 @@ macro_rules! table_body {
             $($no_select_column_name:ident -> $no_select_type:ty,)*
         }
     ) => {
+        table_body! {
+            $name ($pk) {
+                $($column_name -> $Type,)+
+            } no select {
+                $($no_select_column_name -> $no_select_type,)*
+            } custom_types { }
+        }
+    };
+    (
+        $name:ident ($pk:ident) {
+            $($column_name:ident -> $Type:ty,)+
+        } no select {
+            $($no_select_column_name:ident -> $no_select_type:ty,)*
+        } custom_types {
+            $($(::$ut:ident)*,)*
+        }
+    ) => {
         pub mod $name {
+            $(use $(::$ut)*;)*
             use $crate::{
                 QuerySource,
                 Table,
@@ -245,6 +301,7 @@ macro_rules! table_body {
             }
 
             pub mod columns {
+                $(use $(::$ut)*;)*
                 use super::table;
                 use $crate::{Table, Column, Expression, SelectableExpression};
                 use $crate::backend::Backend;

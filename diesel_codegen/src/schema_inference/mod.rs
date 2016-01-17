@@ -5,7 +5,7 @@ use diesel::pg::PgConnection;
 use syntax::ast;
 use syntax::codemap::Span;
 use syntax::ext::base::*;
-use syntax::parse::token::{InternedString, str_to_ident};
+use syntax::parse::token::{InternedString, str_to_ident, Token};
 use syntax::ptr::P;
 use syntax::util::small_vector::SmallVector;
 
@@ -39,7 +39,7 @@ pub fn load_table_body<T: Iterator<Item=P<ast::Expr>>>(
     let database_url = try!(next_str_lit(cx, sp, exprs));
     let table_name = try!(next_str_lit(cx, sp, exprs));
     let connection = try!(establish_connection(cx, sp, &database_url));
-    table_macro_call(cx, sp, &connection, &table_name)
+    table_macro_call(cx, sp, &connection, &table_name, None)
         .map(|item| MacEager::items(SmallVector::one(item)))
 }
 
@@ -48,12 +48,16 @@ pub fn expand_infer_schema<'cx>(
     sp: Span,
     tts: &[ast::TokenTree]
 ) -> Box<MacResult+'cx> {
-    let mut exprs = match get_exprs_from_tts(cx, sp, tts) {
+    let mid = tts.iter().enumerate().filter(|&(_, t)|
+        if let &ast::TokenTree::Token(_, Token::Comma) = t { true } else { false }
+    ).map(|(i, _)| i).next().expect("No commas in tokentree");
+    let (first_two, other_tokens) = tts.split_at(mid+1);
+    let mut exprs = match get_exprs_from_tts(cx, sp, first_two) {
         Some(exprs) => exprs.into_iter(),
         None => return DummyResult::any(sp),
     };
 
-    match infer_schema_body(cx, sp, &mut exprs) {
+    match infer_schema_body(cx, sp, &mut exprs, other_tokens) {
         Ok(res) => res,
         Err(res) => res,
     }
@@ -63,12 +67,13 @@ pub fn infer_schema_body<T: Iterator<Item=P<ast::Expr>>>(
     cx: &mut ExtCtxt,
     sp: Span,
     exprs: &mut T,
+    other_tokens: &[ast::TokenTree],
 ) -> Result<Box<MacResult>, Box<MacResult>> {
     let database_url = try!(next_str_lit(cx, sp, exprs));
     let connection = try!(establish_connection(cx, sp, &database_url));
     let table_names = load_table_names(cx, sp, &connection).unwrap();
     let impls = table_names.into_iter()
-        .map(|n| table_macro_call(cx, sp, &connection, &n))
+        .map(|n| table_macro_call(cx, sp, &connection, &n, Some(other_tokens)))
         .collect();
     Ok(MacEager::items(SmallVector::many(try!(impls))))
 }
@@ -89,6 +94,7 @@ fn table_macro_call(
     sp: Span,
     connection: &PgConnection,
     table_name: &str,
+    other_tokens: Option<&[ast::TokenTree]>,
 ) -> Result<P<ast::Item>, Box<MacResult>> {
     match get_table_data(connection, table_name) {
         Err(NotFound) => {
@@ -103,11 +109,18 @@ fn table_macro_call(
             let tokens = data.iter().map(|a| column_def_tokens(cx, a))
                 .collect::<Vec<_>>();
             let table_name = str_to_ident(table_name);
-            let item = quote_item!(cx, table! {
-                $table_name {
-                    $tokens
-                }
-            }).unwrap();
+            let item = match other_tokens {
+                Some(oth_tok) => quote_item!(cx, table! {
+                                   $table_name {
+                                       $tokens
+                                   } custom_types { $oth_tok }
+                                }).unwrap(),
+                None          => quote_item!(cx, table! {
+                                   $table_name {
+                                       $tokens
+                                   }
+                                }).unwrap(),
+            };
             Ok(item)
         }
     }
