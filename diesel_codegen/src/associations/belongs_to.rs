@@ -63,7 +63,7 @@ impl<'a, 'b> BelongsToAssociationBuilder<'a, 'b> {
     }
 
     fn parent_table_name(&self) -> ast::Ident {
-        let pluralized = format!("{}s", &self.options.name.name.as_str());
+        let pluralized = format!("{}", &self.options.name.name.as_str());
         str_to_ident(&pluralized)
     }
 
