@@ -110,16 +110,19 @@ fn table_macro_call(
                 .collect::<Vec<_>>();
             let table_name = str_to_ident(table_name);
             let item = match other_tokens {
-                Some(oth_tok) => quote_item!(cx, table! {
-                                   $table_name {
-                                       $tokens
-                                   } custom_types { $oth_tok }
-                                }).unwrap(),
-                None          => quote_item!(cx, table! {
-                                   $table_name {
-                                       $tokens
-                                   }
-                                }).unwrap(),
+                Some(oth_tok) => {
+                    let tok_vec: Vec<_> = oth_tok.iter().cloned().collect();
+                    quote_item!(cx, table! {
+                        $table_name {
+                            $tokens
+                        } custom_types { $tok_vec }
+                    }).unwrap()
+                },
+                None => quote_item!(cx, table! {
+                           $table_name {
+                               $tokens
+                           }
+                        }).unwrap(),
             };
             Ok(item)
         }
