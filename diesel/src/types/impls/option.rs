@@ -6,7 +6,20 @@ use backend::Backend;
 use expression::*;
 use expression::bound::Bound;
 use query_source::Queryable;
-use types::{HasSqlType, FromSql, FromSqlRow, Nullable, ToSql, IsNull, NotNull};
+use types::{HasSqlType, FromSql, FromSqlRow, Nullable, ToSql, IsNull, NotNull, SimpleNullableFromSqlRow};
+use row::Row;
+
+// Allow implementing for custom types
+impl<T, ST, DB> FromSqlRow<Nullable<ST>, DB> for Option<T> where
+    T:  FromSql<ST, DB>+SimpleNullableFromSqlRow,
+    DB: Backend + HasSqlType<ST>,
+    ST: NotNull,
+{
+    fn build_from_row<R: Row<DB>>(row: &mut R) -> Result<Self, Box<Error>> {
+        T::from_sql(row.take()).map(Some)
+    }
+}
+// end
 
 impl<T, DB> HasSqlType<Nullable<T>> for DB where
     DB: Backend + HasSqlType<T>, T: NotNull,

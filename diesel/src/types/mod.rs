@@ -116,3 +116,6 @@ impl<'a, A, T, DB> ToSql<A, DB> for &'a T where
         (*self).to_sql(out)
     }
 }
+
+// Allow implementing for custom types
+pub trait SimpleNullableFromSqlRow {}
