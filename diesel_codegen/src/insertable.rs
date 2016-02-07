@@ -132,7 +132,7 @@ fn values_expr(
         let not_none_expr = quote_expr!(cx,
             ::diesel::persistable::ColumnInsertValue::Expression(
                 $field_ty,
-                AsExpression::<<$field_ty as Expression>::SqlType>::as_expression(&$field_access),
+                AsExpression::<<$field_ty as Expression>::SqlType>::as_expression(&$field_access).into(),
             )
         );
         if is_option_ty(&f.ty) {

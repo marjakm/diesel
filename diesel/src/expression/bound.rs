@@ -11,6 +11,19 @@ pub struct Bound<T, U> {
     _marker: PhantomData<T>,
 }
 
+impl<T: Expression> From<T> for Bound<T, T> {
+    fn from(item: T) -> Self {
+        Bound::new(item)
+    }
+}
+
+impl<'a, T: Expression> From<&'a T> for Bound<T, &'a T> {
+    fn from(item: &'a T) -> Self {
+        Bound::new(item)
+    }
+}
+
+
 impl<T, U> Bound<T, U> {
     pub fn new(item: U) -> Self {
         Bound {
