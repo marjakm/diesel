@@ -16,7 +16,10 @@ impl<T, ST, DB> FromSqlRow<Nullable<ST>, DB> for Option<T> where
     ST: NotNull,
 {
     fn build_from_row<R: Row<DB>>(row: &mut R) -> Result<Self, Box<Error>> {
-        T::from_sql(row.take()).map(Some)
+        match row.take() {
+            Some(ref mut data) => T::from_sql(Some(data)).map(Some),
+            None               => Ok(None)
+        }
     }
 }
 // end
