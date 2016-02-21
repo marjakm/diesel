@@ -214,9 +214,18 @@ fn changeset_expr(
 ) -> P<ast::Expr> {
     let column = cx.path(span, vec![options.table_name, attr.column_name]);
     let field_name = &attr.field_name.unwrap();
+    let field_ty = &attr.ty;
     if !options.treat_none_as_null && is_option_ty(&attr.ty) {
         quote_expr!(cx, self.$field_name.as_ref().map(|f| $column.eq(f)))
     } else {
-        quote_expr!(cx, $column.eq(&self.$field_name))
+        quote_expr!(cx, $column.eq(
+            ::diesel::expression::bound::Bound::<
+                <$column as ::diesel::expression::Expression>::SqlType, &$field_ty
+            >::from(
+                ::diesel::expression::AsExpression::<
+                    <$column as ::diesel::expression::Expression>::SqlType
+                >::as_expression(&self.$field_name)
+            )
+        ))
     }
 }
